@@ -7,11 +7,11 @@ class UserBaseSchema(BaseModel):
     email: str
 
 
-class UserCreate(UserBaseSchema):
+class UserCreateSchema(UserBaseSchema):
     password: str
 
 
-class User(UserBaseSchema):
+class UserSchema(UserBaseSchema):
     id: int
     is_active: bool
     created_at: datetime
