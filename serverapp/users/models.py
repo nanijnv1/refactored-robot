@@ -20,3 +20,17 @@ class User(Base):
 
     updated_at = Column(DateTime, default=datetime.utcnow())
 
+
+class AuthToken(Base):
+    __tablename__ = "auth_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    token = Column(String, index=True)
+
+    user_id = Column(Integer, ForeignKey(User.id), name="user_token", index=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow())
+
+    updated_at = Column(DateTime, default=datetime.utcnow())
+
