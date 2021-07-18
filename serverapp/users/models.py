@@ -12,6 +12,10 @@ class User(Base):
 
     email = Column(String, unique=True, index=True)
 
+    first_name = Column(String, index=True, default='')
+
+    last_name = Column(String, index=True, default='')
+
     hashed_password = Column(String)
 
     is_active = Column(Boolean, default=True)
@@ -33,4 +37,6 @@ class AuthToken(Base):
     created_at = Column(DateTime, default=datetime.utcnow())
 
     updated_at = Column(DateTime, default=datetime.utcnow())
+
+    expired_at = Column(DateTime)
 
