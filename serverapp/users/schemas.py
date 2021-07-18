@@ -19,6 +19,8 @@ class UserLoginSchema(UserBaseSchema):
 
 class UserSchema(UserBaseSchema):
     id: int
+    first_name: str
+    last_name: str
     is_active: bool
     created_at: datetime
     updated_at: datetime

@@ -8,17 +8,13 @@ import sys
 from .database import SessionLocal, engine, Base
 from .users.schemas import UserSchema, UserCreateSchema, UserBaseSchema, UserLoginSchema
 from .users.views import get_user_by_email, get_user, get_users, create_user, \
-    check_username_password, create_access_token
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, HTTPBasic
+    check_username_password, create_access_token, validate_token
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, HTTPBasic, HTTPBasicCredentials
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
-my_secret_key = "pleaSeDoN0tKillMyC_at"
-security = HTTPBasic()
-
-
-# auth_handler = Authorization(my_secret_key)
+auth = HTTPBearer()
 
 
 # Dependency
@@ -36,20 +32,20 @@ def welcome(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return "Welcome"
 
 
-@app.post("/users/", response_model=UserSchema)
+@app.post("/register/", response_model=UserSchema)
 def register_user(user: UserCreateSchema, response: Response, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     else:
         new_user = create_user(db=db, user=user)
-        access_token = create_access_token(data={"email": user.email, 'name': new_user.name, 'id': new_user.id},
+        access_token = create_access_token(data={"email": user.email, 'name': new_user.first_name, 'id': new_user.id},
                                            db=db, user=new_user)
-        response.headers["Bearer"] = access_token
+        response.headers["Token"] = access_token
     return new_user
 
 
-@app.post("/login")
+@app.post("/login/")
 def login(user: UserLoginSchema, response: Response, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, email=user.email)
     if db_user is None:
@@ -59,20 +55,23 @@ def login(user: UserLoginSchema, response: Response, db: Session = Depends(get_d
         if not is_password_correct:
             raise HTTPException(status_code=400, detail="incorrect password")
         else:
-            access_token = create_access_token(data={"email": user.email, 'name': db_user.name, 'id': db_user.id},
+            access_token = create_access_token(data={"email": user.email, 'name': db_user.first_name, 'id': db_user.id},
                                                db=db, user=db_user)
-            response.headers["Bearer"] = access_token
+            response.headers["Token"] = access_token
             return user
 
 
-@app.get("/users/", response_model=List[UserSchema])
-def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+@app.get("/users/", response_model=List[UserSchema], )
+def read_users(skip: int = 0, limit: int = 100, authorization: HTTPAuthorizationCredentials = Depends(auth),
+               db: Session = Depends(get_db)):
+    validate_token(db, authorization.credentials)
     users = get_users(db, skip=skip, limit=limit)
     return users
 
 
 @app.get("/users/{user_id}", response_model=UserSchema)
-def read_user(user_id: int, db: Session = Depends(get_db)):
+def read_user(user_id: int, db: Session = Depends(get_db), authorization: HTTPAuthorizationCredentials = Depends(auth)):
+    validate_token(db, authorization.credentials)
     db_user = get_user(db, user_id=user_id)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
