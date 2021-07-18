@@ -6,17 +6,18 @@ import sys
 
 # from . import crud, models, schemas
 from .database import SessionLocal, engine, Base
-from .users.schemas import UserSchema, UserCreateSchema, UserBaseSchema
+from .users.schemas import UserSchema, UserCreateSchema, UserBaseSchema, UserLoginSchema
 from .users.views import get_user_by_email, get_user, get_users, create_user, \
     check_username_password, create_access_token
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, HTTPBasic
-
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
 my_secret_key = "pleaSeDoN0tKillMyC_at"
 security = HTTPBasic()
+
+
 # auth_handler = Authorization(my_secret_key)
 
 
@@ -36,24 +37,30 @@ def welcome(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 
 
 @app.post("/users/", response_model=UserSchema)
-def register_user(user: UserCreateSchema, db: Session = Depends(get_db)):
+def register_user(user: UserCreateSchema, response: Response, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
-    return create_user(db=db, user=user)
+    else:
+        new_user = create_user(db=db, user=user)
+        access_token = create_access_token(data={"email": user.email, 'name': new_user.name, 'id': new_user.id},
+                                           db=db, user=new_user)
+        response.headers["Bearer"] = access_token
+    return new_user
 
 
 @app.post("/login")
-def login(user: UserCreateSchema, response: Response, db: Session = Depends(get_db)):
+def login(user: UserLoginSchema, response: Response, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, email=user.email)
     if db_user is None:
         raise HTTPException(status_code=400, detail="Username not existed")
     else:
         is_password_correct = check_username_password(db, user)
         if not is_password_correct:
-            raise HTTPException(status_code=400, detail="Password is not correct")
+            raise HTTPException(status_code=400, detail="incorrect password")
         else:
-            access_token = create_access_token(data={"sub": user.email})
+            access_token = create_access_token(data={"email": user.email, 'name': db_user.name, 'id': db_user.id},
+                                               db=db, user=db_user)
             response.headers["Bearer"] = access_token
             return user
 
